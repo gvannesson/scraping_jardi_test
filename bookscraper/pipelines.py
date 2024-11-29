@@ -10,4 +10,20 @@ from itemadapter import ItemAdapter
 
 class BookscraperPipeline:
     def process_item(self, item, spider):
+
+        adaptater = ItemAdapter(item)
+
+        field_names = adaptater.field_names()
+        for field_name in field_names:
+            if field_name == "src":
+                value = adaptater.get(field_name)
+                adaptater[field_name] = value.split("-")[-1]
+
+
+        #convert string to number
+        # nbr_rater_string = adaptater.get("nbr_rater")
+        # adaptater["nbr_rater"] = int(nbr_rater_string)
+
+
+
         return item
