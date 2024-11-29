@@ -1,19 +1,21 @@
 import scrapy
 from bookscraper.spider_functions import get_random_user_agent
+import time, random as rd
 
 class BricospiderSpider(scrapy.Spider):
     name = "bricospider"
     # start_urls = ["https://www.jardiland.com"]
     start_urls = ["https://www.jardiland.com"]
 
-    def parse(self, response):
+    # def parse(self, response):
 
-        for start_url in self.start_urls:
-            yield scrapy.Request(
-                url=start_url,
-                headers=get_random_user_agent(),
-                callback=self.parse_category,
-            )
+    #     for start_url in self.start_urls:
+    #         yield scrapy.Request(
+    #             url=start_url,
+    #             # headers=get_random_user_agent(),
+    #             headers="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+    #             callback=self.parse_category,
+    #         )
 
     
     # def parse_page_list(self, response):
@@ -43,57 +45,69 @@ class BricospiderSpider(scrapy.Spider):
     #     print(src)
 
 
-    print("############################coucou#####################""")
-    def parse_category(self, response):
+    # print("############################coucou#####################""")
+    def parse(self, response):
         print("############################salut#####################""")
-        # category = response.css('a.ens-main-navigation-items__link.ds-ens-anchor.ds-ens-anchor--link.ens-main-navigation-items__link')
-        # print(f"----------------------------{category}")
-        # animalerie = category[1].attrib['href']
-        # animalerie_url = "https://www.jardiland.com" + animalerie
-        # print(animalerie_url)
         categories = response.css("a.ens-main-navigation-items__link.ds-ens-anchor.ds-ens-anchor--link.ens-main-navigation-items__link")
         for categorie in categories:
-
-            #print(categorie.css(".ens-main-navigation-items__link-label::text").get())
-            next_url="https://www.jardiland.com"+categorie.attrib['href']
-            if "collection-noel" in next_url:
+            url_du_moment="https://www.jardiland.com"+categorie.attrib['href']
+            titre_du_moment=categorie.css('.ens-main-navigation-items__link-label  ::text').get()
+            print(url_du_moment)
+            print("")
+            if "promotions" in url_du_moment or "conseils-idees" in url_du_moment\
+                or "animalerie"in url_du_moment or "plante"in url_du_moment or "jardinage"in url_du_moment\
+                or "amenagement-exterieur"in url_du_moment or "maison" in url_du_moment:
+                print(f"categorie eliminée    {url_du_moment}")
                 continue
-            yield{
-            "titre_categorie":categorie.css(".ens-main-navigation-items__link-label::text").get(),
-            "url_categorie":"https://www.jardiland.com"+categorie.attrib['href'],
-            "is_page_list":0
-        
-            
-        }
-            yield response.follow(
-                url=next_url,
-                callback=self.parse_subcategorie
-                
 
+            print(url_du_moment)
+            # time.sleep(rd.uniform(1, 3))
+
+            yield response.follow(
+                url=url_du_moment,
+                callback=self.parse_subcategorie,
+                meta={'cat_parente': self.start_urls[0],'titre_du_moment':titre_du_moment, "ma_cat_actuelle": url_du_moment}
             )
-            break
+
+
+    def check_categorie(self, response):
+        return response.css('a.ens-product-list-categories__item')
+    
 
     def parse_subcategorie(self, response):
         print("############################hello#####################""")
         sub_categories = response.css('a.ens-product-list-categories__item')
-
-
+        print(sub_categories)
+        classe_parente = response.meta['cat_parente']
         for sub_categorie in sub_categories:
-            next_url="https://www.jardiland.com"+sub_categorie.attrib['href']
-            yield{
-            "titre_subcategorie":sub_categorie.css("::text").get(),
-            "url_categorie":"https://www.jardiland.com"+sub_categorie.attrib['href'],
-            "is_page_list": 0 if response.follow(url=next_url, callback=self.parse_subcategorie)==[]else 1
-
+            print(f"------------------{sub_categorie}")
+            url_du_moment="https://www.jardiland.com"+sub_categorie.attrib['href']
+            print(f"------------------{url_du_moment}")
+            title_du_moment = sub_categorie.css("::text").get()
+            print(f"#############{title_du_moment}")
+            print(f'~~~~~~~~~~~~~~{response.follow(url=url_du_moment,callback=self.check_categorie)}')
             
-            }
 
+            # if url_du_moment.css('.ens-product-list-categories__item') is not None:
+            #     page_val = 0
+            # else: 
+            #     page_val = 1
+                
+            print(f"le titre de la sous categorie qui vient d etre yieldé {title_du_moment}")
+            # print(f"la prochaine sub cat est {response.follow(url=url_du_moment).css('a.ens-product-list-categories__item')}")
             yield response.follow(
-                url=next_url,
-                callback=self.parse_subcategorie
+                url=url_du_moment,
+                callback=self.parse_subcategorie,
+                meta={'cat_parente': classe_parente,'titre_du_moment':title_du_moment, "ma_cat_actuelle": url_du_moment}
             )
 
-            break
+        yield{
+            "titre_categorie":response.meta['titre_du_moment'],
+            "url_categorie":response.meta['ma_cat_actuelle'],
+            'is_page_list':False if sub_categories else True
+            }
+
+            # break
 
 
             # sub_cat_title = response.css('a.ens-product-list-categories__item ::text')
@@ -107,7 +121,6 @@ class BricospiderSpider(scrapy.Spider):
             # except:
             #    "is_page_list":1
 
-        print("")
 
 
 
